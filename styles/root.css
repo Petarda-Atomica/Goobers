@@ -1,0 +1,199 @@
+body {
+    background-color: black;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.greenBTN {
+    aspect-ratio: 1;
+    height: 30vh;
+    width: auto;
+    border-radius: 100%;
+    margin-right: auto;
+    margin-left: 2cm;
+    background-color: greenyellow;
+}
+
+.redBTN {
+    aspect-ratio: 1;
+    height: 30vh;
+    width: auto;
+    border-radius: 100%;
+    background-color: red;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+}
+
+.redBTN h1 {
+    font-size: 3.5cm;
+    color: white;
+}
+
+.ballCircle {
+    border-radius: 100%;
+    aspect-ratio: 1;
+    width: 50vh;
+    height: auto;
+    margin: auto;
+    margin-top: 25vh;
+    box-shadow: 0 0 15px 15px aqua;
+
+    background-color: black;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+
+    touch-action: none;
+}
+
+.ball {
+    border-radius: 100%;
+    aspect-ratio: 1;
+    width: 25%;
+    background-color: white;
+}
+
+.start-prompt {
+    position: absolute;
+    background-color: rgb(54, 54, 54);
+    z-index: 999999;
+    width: 100vw;
+    height: 100vh;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.start-prompt h1 {
+    color: white;
+    font-family: 'SYFY Fantasy', sans-serif;
+}
+
+.start-prompt button {
+    color: white;
+    font-family: 'SYFY Fantasy', sans-serif;
+    background-color: black;
+    border-color: lime;
+    border-radius: 10px;
+    border-width: 10px;
+
+    text-align: center;
+    width: 5cm;
+    height: auto;
+    padding: 10px;
+    margin-top: 5px;
+}
+
+.start-prompt input {
+    color: lime;
+    background-color: black;
+}
+
+.left-half {
+    position: absolute;
+
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    width: 50vw;
+    z-index: 1;
+}
+.right-half {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin: 0;
+    padding: 1cm;
+    height: 100vh;
+    width: 50vw;
+
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    z-index: 1;
+}
+
+
+#hat-img {
+    width: 2cm;
+    height: 2cm;
+
+    background-size:contain;
+    background-repeat: no-repeat;
+
+    color: transparent;
+}
+
+.hats {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+
+.left-arrow {
+    width: 2cm;
+    height: 2cm;
+    transform: rotate(180deg);
+}
+
+.right-arrow {
+    width: 2cm;
+    height: 2cm;
+    }
+
+    #char-img {
+    width: 2cm;
+    height: 2cm;
+
+    background-size:contain;
+    background-repeat: no-repeat;
+
+    color: transparent;
+}
+
+#healthBar {
+    position: absolute;
+    height: 1cm;
+    background-color: turquoise;
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+
+    border-radius: 10px;
+}
+
+#triviaBox {
+    color: white;
+    border-radius: 20px;
+    text-align: center;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80vw;
+    height: 80vh;
+    background-color: maroon;
+    z-index: 999 !important;
+    display: none;
+}
+
+#answers {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    text-align: center;
+}
+
+.answer {
+    width: 30%;
+    border: 1px solid #ddd;
+    padding: 10px;
+    font-size: small;
+}

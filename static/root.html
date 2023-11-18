@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=portrait">
+        <script src="/scripts/root.js" defer></script>
+        <link href="https://fonts.cdnfonts.com/css/syfy-fantasy" rel="stylesheet">
+        <link rel="stylesheet" type="text/css" href="/styles/root.css">
+
+        <title>Controller for Goobers</title>
+    </head>
+    <body>
+        <div class="start-prompt" id="prompt">
+            <h1>Alege un caracter!</h1>
+            <div class="hats" style="margin-top: auto;">
+                <img src="/assets/arrow.png" class="left-arrow" id="left-hat" onclick="hats(-1, '{{ MaxHats }}')">
+                <img id="hat-img">
+                <img src="/assets/arrow.png" class="right-arrow" id="right-hat" onclick="hats(1, '{{ MaxHats }}')">
+            </div>
+            <div class="hats" style="margin-bottom: auto;">
+                <img src="/assets/arrow.png" class="left-arrow" id="left-char" onclick="characters(-1, '{{ MaxChars }}')">
+                <img id="char-img">
+                <img src="/assets/arrow.png" class="right-arrow" id="right-char" onclick="characters(1, '{{ MaxChars }}')">
+            </div>
+
+            <input type="text" id="nameInput" maxlength="25">
+            <button onclick="togglePrompt()" style="margin-bottom: 2cm;">PRESS ME!</button>
+        </div>
+
+        <div id="triviaBox">
+            <h1 id="question">This is an example question</h1>
+            <div id="answers">
+                <div id="response1" class="answer"><h1>This might be the right answear</h1></div>
+                <div id="response2" class="answer"><h1>This is definetly wrong!</h1></div>
+                <div id="response3" class="answer"><h1>I just had a stroke typing all of these and I am in serious need of an ambulance. Pick me!</h1></div>
+            </div>
+        </div>
+
+        <div class="left-half" id="container">
+            <div class="ballCircle" id="ballCircle">
+                <div class="ball" id="ball"></div>
+            </div>
+        </div>
+        
+        <div class="right-half">
+            <button ontouchstart="greenBTN()" class="greenBTN"></button>
+            <div ontouchstart="redBTN()" class="redBTN">
+                <h1 id="bombCounter">NaN</h1>
+            </div>
+        </div>
+
+        <div id="healthBar"></div>
+    </body>
+</html>
