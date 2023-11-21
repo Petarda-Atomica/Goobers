@@ -247,7 +247,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				animation:    "idle",
 				IP:           r.RemoteAddr,
 				winner:       false,
-				score:        100000,
+				score:        0,
 				position:     struct{ X, Y float64 }{0.0, windowY},
 				acceleration: struct{ X, Y float64 }{0.0, -100.0},
 				terminalVelocity: struct {
@@ -697,6 +697,7 @@ func run() {
 		thisIMG, err := loadPicture(path.Join(wd, "/assets/backgrounds", fmt.Sprint(i)+".png"))
 		if err != nil {
 			fmt.Println("Failed to load background: ", path.Join(wd, "/assets/backgrounds", fmt.Sprint(i)+".png"))
+			continue
 		}
 
 		backgrounds = append(backgrounds, *pixel.NewSprite(thisIMG, thisIMG.Bounds()))
@@ -805,7 +806,7 @@ func run() {
 		panic(err)
 	}
 	var goobers []goober
-	for i := 0; i < len(goobersDir)/4; i++ {
+	for i := 0; i < len(goobersDir)/5; i++ {
 		// IDLE
 		thisIMG, err := loadPicture(path.Join(wd, "/assets/characters", fmt.Sprint(i+1)+"_idle.png"))
 		if err != nil {
@@ -939,9 +940,13 @@ func run() {
 			} else if currentLevelID == 2 {
 				calculateLevelScore(levelDuration)
 				levelDuration = level2()
+			} else if currentLevelID == -1 {
+				calculateLevelScore(levelDuration)
+				levelDuration = level3()
 			} else {
 				calculateLevelScore(levelDuration)
-				levelDuration = time.Hour * 24
+				levelDuration = time.Millisecond
+				currentLevelID = 0
 			}
 
 		}
@@ -1105,41 +1110,220 @@ func run() {
 }
 
 func level1() time.Duration {
-	placeAllPlayers(100, 175)
+	placeAllPlayers(100, 200)
 	healAllPlayers()
 	clearBlockGrid()
 
+	//* Make walls
+	for i := 2; i <= 20; i++ {
+		blockGrid[0][i].blockType = "basic"
+		blockGrid[38][i].blockType = "basic"
+	}
+	for i := 1; i < 39; i++ {
+		blockGrid[i][20].blockType = "basic"
+	}
+
+	//* Actual level
+	blockGrid[1][2].blockType = "basic"
+	blockGrid[2][2].blockType = "basic"
+	blockGrid[3][2].blockType = "basic"
+
+	for i := 4; i < 38; i++ {
+		blockGrid[i][2].blockType = "lava"
+	}
+
+	blockGrid[8][4].blockType = "basic"
+	blockGrid[9][4].blockType = "basic"
+	blockGrid[10][4].blockType = "basic"
+
+	blockGrid[1][7].blockType = "basic"
+	blockGrid[2][7].blockType = "basic"
+	blockGrid[3][7].blockType = "basic"
+
+	blockGrid[12][8].blockType = "basic"
+	blockGrid[13][8].blockType = "basic"
+	blockGrid[14][8].blockType = "basic"
+
+	blockGrid[8][13].blockType = "basic"
+	blockGrid[9][13].blockType = "basic"
+	blockGrid[10][13].blockType = "basic"
+
+	blockGrid[15][10].blockType = "basic"
+	blockGrid[15][14].blockType = "basic"
+
+	for i := 3; i <= 13; i++ {
+		blockGrid[16][i].blockType = "basic"
+	}
+
+	blockGrid[16][14].blockType = "ability"
+
+	blockGrid[37][12].blockType = "finish"
+	blockGrid[36][12].blockType = "finish"
+	blockGrid[35][12].blockType = "finish"
+
+	return time.Second * 60
+}
+
+func level2() time.Duration {
+	placeAllPlayers(100, 150)
+	healAllPlayers()
+	clearBlockGrid()
+
+	//* Make walls
+	for i := 2; i <= 20; i++ {
+		blockGrid[0][i].blockType = "basic"
+		blockGrid[38][i].blockType = "basic"
+	}
+	for i := 1; i < 39; i++ {
+		blockGrid[i][20].blockType = "basic"
+	}
+
+	//* Actual level
 	blockGrid[0][4].blockType = "basic"
 	blockGrid[1][4].blockType = "basic"
 	blockGrid[2][4].blockType = "basic"
+
 	blockGrid[3][4].blockType = "basic"
 	blockGrid[3][5].blockType = "basic"
 	blockGrid[3][6].blockType = "basic"
 	blockGrid[3][7].blockType = "basic"
-	blockGrid[3][8].blockType = "ability"
-	blockGrid[4][8].blockType = "finish"
-	blockGrid[5][8].blockType = "finish"
-	blockGrid[6][8].blockType = "lava"
+	blockGrid[3][8].blockType = "basic"
+	blockGrid[3][9].blockType = "basic"
+	blockGrid[3][10].blockType = "basic"
+	blockGrid[3][11].blockType = "basic"
+	blockGrid[3][12].blockType = "basic"
+	blockGrid[3][13].blockType = "basic"
 
-	return time.Second * 20
+	blockGrid[7][2].blockType = "basic"
+	blockGrid[7][3].blockType = "basic"
+	blockGrid[7][4].blockType = "basic"
+	blockGrid[7][5].blockType = "basic"
+	blockGrid[7][6].blockType = "basic"
+	blockGrid[7][7].blockType = "basic"
+	blockGrid[7][8].blockType = "basic"
+	blockGrid[7][9].blockType = "basic"
+	blockGrid[7][10].blockType = "basic"
+	blockGrid[7][11].blockType = "basic"
+	blockGrid[7][12].blockType = "basic"
+	blockGrid[7][13].blockType = "basic"
+
+	blockGrid[8][13].blockType = "ability"
+	blockGrid[9][13].blockType = "ability"
+	blockGrid[10][13].blockType = "ability"
+	blockGrid[11][13].blockType = "basic"
+	blockGrid[11][14].blockType = "basic"
+	blockGrid[11][15].blockType = "basic"
+	blockGrid[11][16].blockType = "basic"
+	blockGrid[11][17].blockType = "basic"
+	blockGrid[11][18].blockType = "basic"
+	blockGrid[11][19].blockType = "basic"
+
+	blockGrid[10][2].blockType = "lava"
+	blockGrid[9][2].blockType = "lava"
+	blockGrid[8][2].blockType = "lava"
+
+	blockGrid[11][2].blockType = "basic"
+	blockGrid[11][3].blockType = "basic"
+	blockGrid[11][4].blockType = "basic"
+	blockGrid[11][5].blockType = "basic"
+
+	blockGrid[12][5].blockType = "basic"
+
+	blockGrid[13][5].blockType = "basic"
+	blockGrid[13][6].blockType = "basic"
+	blockGrid[13][7].blockType = "basic"
+	blockGrid[13][8].blockType = "basic"
+	blockGrid[13][9].blockType = "basic"
+	blockGrid[13][10].blockType = "basic"
+	blockGrid[13][11].blockType = "basic"
+
+	blockGrid[12][11].blockType = "basic"
+	blockGrid[12][10].blockType = "basic"
+	blockGrid[11][11].blockType = "basic"
+
+	blockGrid[12][16].blockType = "basic"
+	blockGrid[19][16].blockType = "basic"
+	blockGrid[20][16].blockType = "basic"
+	blockGrid[27][16].blockType = "basic"
+	blockGrid[28][16].blockType = "basic"
+
+	blockGrid[36][16].blockType = "ability"
+	blockGrid[37][16].blockType = "ability"
+
+	blockGrid[35][16].blockType = "basic"
+	blockGrid[34][16].blockType = "basic"
+	blockGrid[35][15].blockType = "basic"
+	blockGrid[35][14].blockType = "basic"
+	blockGrid[35][13].blockType = "basic"
+	blockGrid[35][12].blockType = "basic"
+	blockGrid[35][11].blockType = "basic"
+	blockGrid[35][10].blockType = "basic"
+	blockGrid[35][9].blockType = "basic"
+	blockGrid[35][8].blockType = "basic"
+	blockGrid[35][7].blockType = "basic"
+	blockGrid[35][6].blockType = "basic"
+	blockGrid[35][5].blockType = "basic"
+	blockGrid[35][4].blockType = "basic"
+	blockGrid[35][3].blockType = "basic"
+	blockGrid[35][2].blockType = "basic"
+
+	blockGrid[36][10].blockType = "ability"
+	blockGrid[37][10].blockType = "ability"
+
+	blockGrid[36][4].blockType = "ability"
+	blockGrid[37][4].blockType = "ability"
+
+	blockGrid[36][2].blockType = "finish"
+	blockGrid[37][2].blockType = "finish"
+
+	return time.Second * 120
 }
 
-func level2() time.Duration {
-	placeAllPlayers(100, 275)
+func level3() time.Duration {
+	placeAllPlayers(100, 200)
 	healAllPlayers()
 	clearBlockGrid()
 
-	blockGrid[0][4].blockType = "lava"
-	blockGrid[1][4].blockType = "lava"
-	blockGrid[2][4].blockType = "lava"
-	blockGrid[3][4].blockType = "lava"
-	blockGrid[3][5].blockType = "basic"
-	blockGrid[3][6].blockType = "basic"
-	blockGrid[3][7].blockType = "basic"
-	blockGrid[3][8].blockType = "ability"
-	blockGrid[4][8].blockType = "finish"
-	blockGrid[5][8].blockType = "finish"
-	blockGrid[6][8].blockType = "lava"
+	//* Make walls
+	for i := 2; i <= 20; i++ {
+		blockGrid[0][i].blockType = "basic"
+		blockGrid[38][i].blockType = "basic"
+	}
+	for i := 1; i < 39; i++ {
+		blockGrid[i][20].blockType = "basic"
+		blockGrid[i][19].blockType = "basic"
+	}
 
-	return time.Second * 2
+	//* Actual level
+	for i := 1; i < 38; i++ {
+		blockGrid[i][2].blockType = "basic"
+	}
+
+	blockGrid[1][4].blockType = "basic"
+	blockGrid[2][4].blockType = "basic"
+	blockGrid[3][4].blockType = "basic"
+
+	blockGrid[4][4].blockType = "basic"
+	blockGrid[4][5].blockType = "basic"
+	blockGrid[4][6].blockType = "basic"
+	blockGrid[4][7].blockType = "basic"
+
+	blockGrid[3][7].blockType = "basic"
+	blockGrid[2][7].blockType = "basic"
+	blockGrid[1][7].blockType = "basic"
+
+	blockGrid[1][10].blockType = "basic"
+	blockGrid[2][10].blockType = "basic"
+	blockGrid[3][10].blockType = "basic"
+	blockGrid[4][10].blockType = "basic"
+	blockGrid[4][11].blockType = "basic"
+	blockGrid[4][12].blockType = "basic"
+	blockGrid[4][13].blockType = "basic"
+	blockGrid[4][14].blockType = "basic"
+	blockGrid[4][15].blockType = "basic"
+	blockGrid[4][16].blockType = "basic"
+	blockGrid[4][19].blockType = "basic"
+	blockGrid[4][20].blockType = "basic"
+
+	return time.Second * 60
 }

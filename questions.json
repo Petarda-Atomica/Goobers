@@ -1,3 +1,22 @@
 [
-    { "Question": "Ce este predicatul?", "Correct":"O parte de propozitie", "Alt1":"O felie de pizza", "Alt2":"O parte de vorbire"}
+    { "Question": "Care este opera literara considerata capodopera a lui Mihai Eminescu?", "Correct":"Luceafărul", "Alt1":"Enigma Otiliei", "Alt2":"Moara cu noroc" },
+    { "Question": "Cine este autorul romanului \"Morometii\"?", "Correct":"Marin Preda", "Alt1":"Mircea Eliade", "Alt2":"Ion Creanga" },
+    { "Question": "Ce scriitor roman este cunoscut pentru opera \"Ion\"?", "Correct":"Liviu Rebreanu", "Alt1":"George Calinescu", "Alt2":"Mircea Cartarescu" },
+    { "Question": "Care este numele scriitorului care a creat personajul Maigret?", "Correct":"Georges Simenon", "Alt1":"Eugene Ionesco", "Alt2":"Mihail Sadoveanu" },
+    { "Question": "Cine este autorul romanului \"Ultima noapte de dragoste, întâia noapte de război\"?", "Correct":"Camil Petrescu", "Alt1":"Ion Luca Caragiale", "Alt2":"Panait Istrati" },
+    { "Question": "Ce poet roman a scris cunoscuta balada \"Miorița\"?", "Correct":"Vasile Alecsandri", "Alt1":"George Coșbuc", "Alt2":"Lucian Blaga" },
+    { "Question": "Cine este autorul tragediei clasice \"Oedip Rege\"?", "Correct":"Sofocle", "Alt1":"Euripide", "Alt2":"Aristofan" },
+    { "Question": "Care este numele scriitorului care a scris romanul \"Enigma Otiliei\"?", "Correct":"George Călinescu", "Alt1":"Liviu Rebreanu", "Alt2":"Ion Creangă" },
+    { "Question": "Cine a scris romanul \"Padurea Spanzuratilor\"?", "Correct":"Liviu Rebreanu", "Alt1":"Ion Creanga", "Alt2":"Mihai Eminescu" },
+    { "Question": "Ce scriitor roman este cunoscut pentru romanul \"Baltagul\"?", "Correct":"Mihail Sadoveanu", "Alt1":"Ioan Slavici", "Alt2":"Mihai Eminescu" },
+    { "Question": "Cine este autorul piesei de teatru \"O scrisoare pierdută\"?", "Correct":"Ion Luca Caragiale", "Alt1":"Eugen Ionesco", "Alt2":"George Călinescu" },
+    { "Question": "Ce poet român este asociat cu mișcarea suprarealistă?", "Correct":"Gherasim Luca", "Alt1":"Lucian Blaga", "Alt2":"George Bacovia" },
+    { "Question": "Cine a scris romanul \"Ion\"?", "Correct":"Liviu Rebreanu", "Alt1":"Ion Creanga", "Alt2":"Mihai Eminescu" },
+    { "Question": "Care este numele scriitorului care a creat personajul Amza Pellea?", "Correct":"Paul Georgescu", "Alt1":"Ion Luca Caragiale", "Alt2":"Marin Preda" },
+    { "Question": "Cine a scris romanul \"Ultima noapte de dragoste, întâia noapte de război\"?", "Correct":"Camil Petrescu", "Alt1":"Mircea Eliade", "Alt2":"Mihail Sadoveanu" },
+    { "Question": "Ce scriitor roman este cunoscut pentru versurile sale umoristice?", "Correct":"Radu Gyr", "Alt1":"George Coșbuc", "Alt2":"Ion Minulescu" },
+    { "Question": "Cine este autorul romanului \"Enigma Otiliei\"?", "Correct":"George Călinescu", "Alt1":"Liviu Rebreanu", "Alt2":"Ioan Slavici" },
+    { "Question": "Ce poet român a scris poezia \"Luceafărul\"?", "Correct":"Mihai Eminescu", "Alt1":"Vasile Alecsandri", "Alt2":"George Coșbuc" },
+    { "Question": "Cine a scris romanul \"Morometii\"?", "Correct":"Marin Preda", "Alt1":"Ion Creanga", "Alt2":"Mihai Eminescu" },
+    { "Question": "Care este numele scriitorului care a creat personajul \"Amintiri din copilărie\"?", "Correct":"Ion Creangă", "Alt1":"Mihai Eminescu", "Alt2":"George Călinescu" }
 ]
