@@ -44,7 +44,7 @@ const explosionPower = 10000
 const explosionSpread = 1.
 const explosionDecay = .01
 const minBombsLeft = 3
-const correctAnswerPoints = 1000.
+const correctAnswerPoints = 5000.
 const maxLevelPoints = 10000.
 const nonCompletionPenalty = 1000
 const podiumDisplayTime = time.Second * 5
@@ -306,6 +306,9 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 func notifyController(t time.Duration) {
 	for {
+		if !gameStarted {
+			continue
+		}
 		for i := range players {
 			message := fmt.Sprintf("BOM\\\\%s\\\\%d", players[i].playerName, players[i].bombsLeft)
 			conn.WriteMessage(websocket.TextMessage, []byte(message))
@@ -482,7 +485,16 @@ func movementHandler(deltaTime float64) {
 		// Stop at walls
 		if (gridPositionX > -1 && gridPositionX+1 < len(blockGrid)) && (gridPositionY > -1 && gridPositionY+1 < len(blockGrid[0])) {
 			if (changedX < 0 && blockGrid[gridPositionX][gridPositionY].blockType != "") || (changedX > 0 && blockGrid[gridPositionX+1][gridPositionY].blockType != "") {
-				changedX -= changedX
+
+				if changedX > 0 && players[i].animation != "idle" {
+					changedX -= math.Abs(changedX)
+				} else if players[i].animation != "idle" {
+					changedX += math.Abs(changedX)
+				} else {
+					players[i].position.Y -= 25 * deltaTime
+					players[i].position.X -= 2 * deltaTime
+				}
+
 			}
 		}
 		players[i].position.X += changedX
@@ -940,9 +952,12 @@ func run() {
 			} else if currentLevelID == 2 {
 				calculateLevelScore(levelDuration)
 				levelDuration = level2()
-			} else if currentLevelID == -1 {
+			} else if currentLevelID == 3 {
 				calculateLevelScore(levelDuration)
 				levelDuration = level3()
+			} else if currentLevelID == 4 {
+				calculateLevelScore(levelDuration)
+				levelDuration = level4()
 			} else {
 				calculateLevelScore(levelDuration)
 				levelDuration = time.Millisecond
@@ -1107,6 +1122,53 @@ func run() {
 		win.Update()
 
 	}
+
+	fmt.Println("Please wait while we calculate some scores...")
+	calculateFinalScores()
+}
+
+type finalScore struct {
+	Player string  `json:"Player"`
+	Score  float64 `json:"Score"`
+}
+
+func calculateFinalScores() {
+	gameStarted = false
+	var finalScores []finalScore
+
+	for range players {
+		//* Find biggest number
+		var topID int
+		top := 0.
+		for i := range players {
+			if players[i].score > top {
+				top = players[i].score
+				topID = i
+			}
+		}
+
+		//* Add player to leaderboards
+		finalScores = append(finalScores, finalScore{
+			Player: players[topID].playerName,
+			Score:  players[topID].score,
+		})
+
+		//* Remove player found
+		players = append(players[:topID], players[topID+1:]...)
+	}
+
+	//* Save file
+	data, err := json.Marshal(finalScores)
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println(" \n \n \n ")
+		data = []byte(fmt.Sprint(finalScores))
+	}
+	err = os.WriteFile("scores.json", data, os.ModePerm)
+	if err != nil {
+		fmt.Println(finalScores)
+		panic(err)
+	}
 }
 
 func level1() time.Duration {
@@ -1252,6 +1314,7 @@ func level2() time.Duration {
 
 	blockGrid[35][16].blockType = "basic"
 	blockGrid[34][16].blockType = "basic"
+	blockGrid[34][15].blockType = "basic"
 	blockGrid[35][15].blockType = "basic"
 	blockGrid[35][14].blockType = "basic"
 	blockGrid[35][13].blockType = "basic"
@@ -1276,7 +1339,7 @@ func level2() time.Duration {
 	blockGrid[36][2].blockType = "finish"
 	blockGrid[37][2].blockType = "finish"
 
-	return time.Second * 120
+	return time.Second * 90
 }
 
 func level3() time.Duration {
@@ -1299,11 +1362,10 @@ func level3() time.Duration {
 		blockGrid[i][2].blockType = "basic"
 	}
 
-	blockGrid[1][4].blockType = "basic"
-	blockGrid[2][4].blockType = "basic"
-	blockGrid[3][4].blockType = "basic"
+	blockGrid[1][5].blockType = "basic"
+	blockGrid[2][5].blockType = "basic"
+	blockGrid[3][5].blockType = "basic"
 
-	blockGrid[4][4].blockType = "basic"
 	blockGrid[4][5].blockType = "basic"
 	blockGrid[4][6].blockType = "basic"
 	blockGrid[4][7].blockType = "basic"
@@ -1325,5 +1387,68 @@ func level3() time.Duration {
 	blockGrid[4][19].blockType = "basic"
 	blockGrid[4][20].blockType = "basic"
 
+	for i := 2; i < 17; i++ {
+		blockGrid[8][i].blockType = "basic"
+	}
+
+	for x := 9; x < 38; x++ {
+		for y := 16; y > 2; y-- {
+			if y%3 != 0 {
+				continue
+			}
+
+			if (x+y/3)%3 != 0 {
+				continue
+			}
+
+			blockGrid[x][y].blockType = "basic"
+		}
+	}
+
+	blockGrid[37][2].blockType = "finish"
+	blockGrid[36][2].blockType = "finish"
+
 	return time.Second * 60
+}
+
+func level4() time.Duration {
+	placeAllPlayers(100, 200)
+	healAllPlayers()
+	clearBlockGrid()
+
+	//* Make walls
+	for i := 2; i <= 20; i++ {
+		blockGrid[0][i].blockType = "basic"
+		blockGrid[38][i].blockType = "basic"
+	}
+	for i := 1; i < 39; i++ {
+		blockGrid[i][20].blockType = "basic"
+	}
+
+	//* Actual level
+	for i := 2; i <= 17; i++ {
+		blockGrid[4][i].blockType = "basic"
+		blockGrid[16][i].blockType = "basic"
+		blockGrid[28][i].blockType = "basic"
+	}
+	for i := 4; i <= 19; i++ {
+		blockGrid[10][i].blockType = "basic"
+		blockGrid[22][i].blockType = "basic"
+		blockGrid[34][i].blockType = "basic"
+	}
+
+	blockGrid[35][2].blockType = "finish"
+	blockGrid[36][2].blockType = "finish"
+	blockGrid[37][2].blockType = "finish"
+
+	for x := 5; x < 38; x++ {
+		for y := 19; y > 6; y-- {
+			if rand.Intn(2) == 0 || y%3 != 0 {
+				continue
+			}
+			blockGrid[x][y].blockType = "ability"
+		}
+	}
+
+	return time.Second * 120
 }
