@@ -34,7 +34,7 @@ const bottomFloor = 100
 const gravity = 1000
 const globalTerminalVelocityX = 1000
 const globalTerminalVelocityY = 1000
-const globalJumpPower = 400
+const globalJumpPower = 300.
 const gloablSpeed = 35.
 const constantXLoss = 5.
 const lavaDamage = 100
@@ -381,83 +381,70 @@ func getPrivateIP() (string, error) {
 }
 
 func gravityHandler(deltaTime float64) {
-	for i, val := range players {
-		gridPositionY := int(math.Floor((val.position.Y - 25) / 50))
-		gridPositionX := int(math.Floor((val.position.X) / 50))
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered from panic:", r)
+		}
+	}()
 
-		// Apply acceleration
-		cond := false
-		if (gridPositionX > -1 && gridPositionX+1 < len(blockGrid)) && (gridPositionY > -1 && gridPositionY < len(blockGrid[0])) {
-			cond = blockGrid[gridPositionX][gridPositionY].blockType != "" || blockGrid[gridPositionX+1][gridPositionY].blockType != ""
+	for i := range players {
+		var feetTouchingBlock bool
+		blockSizeX := win.Bounds().W() / blocksPerRow
+		blockSizeY := win.Bounds().H()/blocksPerCollumn + 1
+
+		touchingBlock := blockGrid[int(math.Floor(players[i].position.X/blockSizeX))][int(math.Floor((players[i].position.Y-blockSizeY/2)/blockSizeY))]
+		if touchingBlock.blockType != "" {
+			feetTouchingBlock = true
 		}
-		cond2 := false
-		if (gridPositionX > -1 && gridPositionX < len(blockGrid)) && (gridPositionY > -1 && gridPositionY < len(blockGrid[0])) {
-			if blockGrid[gridPositionX][gridPositionY].blockType == "lava" {
-				cond2 = true
-			}
-		}
-		cond3 := false
-		if (gridPositionX > -1 && gridPositionX < len(blockGrid)) && (gridPositionY > -1 && gridPositionY < len(blockGrid[0])) {
-			if blockGrid[gridPositionX][gridPositionY].blockType == "ability" {
-				claimed := false
-				for _, val := range players[i].claimedBombs {
-					if val.X == gridPositionX && val.Y == gridPositionY {
-						claimed = true
-						break
+
+		if math.Abs(players[i].position.Y-bottomFloor) <= 10 || feetTouchingBlock {
+			players[i].acceleration.Y += math.Abs(players[i].acceleration.Y)
+			players[i].grounded = true
+
+		OuterSwitch:
+			switch touchingBlock.blockType {
+			case "lava":
+				players[i].health -= lavaDamage * deltaTime
+
+			case "ability":
+				// Find if the bomb has been claimed
+				for j := range players[i].claimedBombs {
+					if players[i].claimedBombs[j] == struct {
+						X int
+						Y int
+					}{int(math.Floor(players[i].position.X / blockSizeX)), int(math.Floor((players[i].position.Y - blockSizeY/2) / blockSizeY))} {
+						break OuterSwitch
 					}
 				}
-				if claimed {
-					continue
-				}
 
-				cond3 = true
-			}
-		}
-		cond4 := false
-		if (gridPositionX > -1 && gridPositionX < len(blockGrid)) && (gridPositionY > -1 && gridPositionY < len(blockGrid[0])) {
-			if blockGrid[gridPositionX][gridPositionY].blockType == "finish" {
-				cond4 = true
-			}
-		}
+				// Give out bombs
+				players[i].bombsLeft += 1
+				players[i].claimedBombs = append(players[i].claimedBombs, struct {
+					X int
+					Y int
+				}{int(math.Floor(players[i].position.X / blockSizeX)), int(math.Floor((players[i].position.Y - blockSizeY/2) / blockSizeY))})
 
-		if val.position.Y-bottomFloor < 50 || cond {
-
-			// Stop at the bottom floor
-			if players[i].acceleration.Y < 0 {
-				players[i].acceleration.Y -= players[i].acceleration.Y
-			}
-			players[i].grounded = true
-		}
-		if val.position.Y < bottomFloor || cond2 {
-			// Check if outside of map
-			players[i].health -= lavaDamage * deltaTime
-			if players[i].health <= 0 {
+			case "finish":
+				players[i].winner = true
+				players[i].health = 0
 				players[i].finishDuration = time.Since(currentLevelStartTime)
+			default:
+				break
 			}
-
-		} else if cond3 {
-			players[i].bombsLeft += 1
-			players[i].claimedBombs = append(players[i].claimedBombs, struct {
-				X int
-				Y int
-			}{gridPositionX, gridPositionY})
-		} else if cond4 {
-			players[i].winner = true
-			players[i].health = 0
-			players[i].finishDuration = time.Since(currentLevelStartTime)
+			continue
 		}
-		if val.position.Y > bottomFloor && !(val.position.Y-bottomFloor < 50 || cond) {
-			// Add gravitational acceleration
-			players[i].acceleration.Y -= deltaTime * gravity
-
+		if players[i].position.Y < bottomFloor-10 {
+			players[i].position.Y = bottomFloor + 20
 		}
+
+		players[i].acceleration.Y -= deltaTime * gravity
 	}
 }
 
 func movementHandler(deltaTime float64) {
 	for i, val := range players {
-		gridPositionY := int(math.Round((val.position.Y) / 50))
-		gridPositionX := int(math.Round((val.position.X - 25) / 50))
+		//gridPositionY := int(math.Round((val.position.Y) / 50))
+		//gridPositionX := int(math.Round((val.position.X - 25) / 50))
 
 		// Check if everything is ok
 		if val.acceleration.Y > val.terminalVelocity.Y {
@@ -485,30 +472,40 @@ func movementHandler(deltaTime float64) {
 			continue
 		}
 		players[i].acceleration.X -= (changedX / math.Abs(changedX)) * constantXLoss
+
+		// Make sure we don't crash
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("Recovered from panic:", r)
+				players[i].position.X += changedX
+				players[i].position.Y += changedY
+			}
+		}()
+
 		// Stop at ceilings
-		if (gridPositionX > -1 && gridPositionX < len(blockGrid)) && (gridPositionY > -1 && gridPositionY < len(blockGrid[0])) {
-			if blockGrid[gridPositionX][gridPositionY].blockType != "" {
-				changedY -= math.Abs(changedY)
+		blockSizeX := win.Bounds().W() / blocksPerRow
+		blockSizeY := win.Bounds().H()/blocksPerCollumn + 1
+		touchingBlock := blockGrid[int(math.Floor(players[i].position.X/blockSizeX))][int(math.Floor((players[i].position.Y-blockSizeY/2)/blockSizeY))+1]
+		if touchingBlock.blockType != "" {
+			if changedY > 0 {
+				changedY = 0
 			}
 		}
-		players[i].position.Y += changedY
 
-		// Stop at walls
-		if (gridPositionX > -1 && gridPositionX+1 < len(blockGrid)) && (gridPositionY > -1 && gridPositionY+1 < len(blockGrid[0])) {
-			if (changedX < 0 && blockGrid[gridPositionX][gridPositionY].blockType != "") || (changedX > 0 && blockGrid[gridPositionX+1][gridPositionY].blockType != "") {
-
-				if changedX > 0 && players[i].animation != "idle" {
-					changedX -= math.Abs(changedX)
-				} else if players[i].animation != "idle" {
-					changedX += math.Abs(changedX)
-				} else {
-					players[i].position.Y -= 25 * deltaTime
-					players[i].position.X -= 2 * deltaTime
-				}
-
-			}
+		// Stop at righ wall
+		touchingBlock = blockGrid[int(math.Floor((players[i].position.X-blockSizeX/2)/blockSizeX))+1][int(math.Floor((players[i].position.Y)/blockSizeY))]
+		if touchingBlock.blockType != "" && changedX > 0 {
+			changedX = 0
 		}
+
+		// Stop at left wall
+		touchingBlock = blockGrid[int(math.Floor((players[i].position.X+blockSizeX/2)/blockSizeX))-1][int(math.Floor((players[i].position.Y)/blockSizeY))]
+		if touchingBlock.blockType != "" && changedX < 0 {
+			changedX = 0
+		}
+
 		players[i].position.X += changedX
+		players[i].position.Y += changedY
 	}
 }
 
@@ -689,6 +686,8 @@ var currentLevelStartTime = time.Now()
 var triviaAnswer string
 var deltaTime float64
 
+var win *pixelgl.Window
+
 func run() {
 	go basicAnimator()
 	go explosionManager()
@@ -700,7 +699,8 @@ func run() {
 		VSync:     true,
 		Maximized: true,
 	}
-	win, err := pixelgl.NewWindow(cfg)
+	var err error
+	win, err = pixelgl.NewWindow(cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -882,7 +882,7 @@ func run() {
 	}
 
 	//*Level counter
-	var currentLevelID = 4
+	var currentLevelID = 0
 	var levelDuration = time.Millisecond // preinit at a small number
 	var showProgressBar = true
 
@@ -1003,6 +1003,8 @@ func run() {
 					choseBlock = abilityBlock
 				case "finish":
 					choseBlock = finishBlock
+				case "":
+					continue
 				default:
 					fmt.Println("unknown block: " + blockGrid[x][y].blockType)
 					continue
@@ -1201,13 +1203,13 @@ func calculateFinalScores() {
 	}
 }
 
-func loadLevelFromFile(levelID int) {
+func loadLevelFromFile(levelID int) time.Duration {
 	data, err := os.ReadFile(path.Join(wd, "/levels/normal/", fmt.Sprint(levelID)+".level"))
 	if err != nil {
 		panic(err)
 	}
 	textData := string(data)
-	lines := strings.Split(textData, "\n")
+	lines := strings.Split(textData, "\n")[:len(strings.Split(textData, "\n"))-2]
 	for y, val := range lines {
 		elems := strings.Split(val, " ")
 		for x, val := range elems {
@@ -1231,6 +1233,15 @@ func loadLevelFromFile(levelID int) {
 			blockGrid[x][y].blockType = toPlace
 		}
 	}
+
+	var secs float64
+	secs, err = strconv.ParseFloat(strings.Split(textData, "\n")[len(strings.Split(textData, "\n"))-1], 64)
+	if err != nil {
+		fmt.Println("Failed to load level timer!")
+		return time.Second * 60
+	}
+
+	return time.Second * time.Duration(secs)
 }
 
 func level1() time.Duration {
