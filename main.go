@@ -28,8 +28,8 @@ var wd string
 var maxHats int
 var maxChars int
 
-const windowX = 1920
-const windowY = 1080
+const windowX = 1280
+const windowY = 720
 const bottomFloor = 100
 const gravity = 1000
 const globalTerminalVelocityX = 1000
@@ -49,6 +49,9 @@ const maxLevelPoints = 10000.
 const nonCompletionPenalty = 1000
 const podiumDisplayTime = time.Second * 5
 
+const blocksPerRow = 39.
+const blocksPerCollumn = 22.
+
 var gameStarted = false
 
 type player struct {
@@ -58,6 +61,7 @@ type player struct {
 	animation        string
 	wearingHat       bool
 	IP               string
+	ws               *websocket.Conn
 	winner           bool
 	score            float64
 	position         struct{ X, Y float64 }
@@ -126,9 +130,9 @@ func _init() {
 	maxHats = len(hats)
 
 	//* Build blockgrid
-	for i := 0; i < windowX/50+1; i++ {
+	for i := 0; i < blocksPerRow; i++ {
 		var row []block
-		for j := 0; j < windowY/50; j++ {
+		for j := 0; j < blocksPerCollumn; j++ {
 			row = append(row, block{blockType: ""})
 		}
 		blockGrid = append(blockGrid, row)
@@ -207,99 +211,106 @@ func dist(x float64, y float64, a float64, b float64) float64 {
 	return math.Sqrt((x-a)*(x-a) + (y-b)*(y-b))
 }
 
-var conn *websocket.Conn
-
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	var err error
-	conn, err = upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer conn.Close()
-
-	fmt.Println("Client connected")
-
 	for {
-		_, msg, err := conn.ReadMessage()
+		// Wait for connections
+		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 
-		// Add new players
-		if string(msg[:3]) == "NEW" {
-			thisHatID, err := strconv.Atoi(strings.Split(string(msg), " ")[1])
-			if err != nil {
-				fmt.Println("Failed to register player.")
-				continue
+		fmt.Println("Client connected")
+
+		go func() {
+			for {
+				_, msg, err := conn.ReadMessage()
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+				go websocketLogic(msg, conn)
 			}
-			thisCharacterID, err := strconv.Atoi(strings.Split(string(msg), " ")[2])
-			if err != nil {
-				fmt.Println("Failed to register player.")
-				continue
-			}
-			players = append(players, player{
-				hatID:        thisHatID,
-				characterID:  thisCharacterID,
-				wearingHat:   true,
-				playerName:   strings.Split(string(msg), " ")[3],
-				animation:    "idle",
-				IP:           r.RemoteAddr,
-				winner:       false,
-				score:        0,
-				position:     struct{ X, Y float64 }{0.0, windowY},
-				acceleration: struct{ X, Y float64 }{0.0, -100.0},
-				terminalVelocity: struct {
-					X float64
-					Y float64
-				}{globalTerminalVelocityX, globalTerminalVelocityY},
-				grounded:     true,
-				jumpPower:    globalJumpPower,
-				speed:        gloablSpeed,
-				bombsLeft:    minBombsLeft,
-				health:       100,
-				claimedBombs: []struct{ X, Y int }{},
-			})
-			fmt.Println("New player: ", players[len(players)-1])
-			continue
+		}()
+	}
+
+}
+
+func websocketLogic(msg []byte, conn *websocket.Conn) {
+	// Add new players
+	if string(msg[:3]) == "NEW" {
+		thisHatID, err := strconv.Atoi(strings.Split(string(msg), " ")[1])
+		if err != nil {
+			fmt.Println("Failed to register player.")
+			return
 		}
-
-		// Check jumps
-		playerID := findPlayerByIP(r.RemoteAddr)
-		if playerID == -1 {
-			continue
+		thisCharacterID, err := strconv.Atoi(strings.Split(string(msg), " ")[2])
+		if err != nil {
+			fmt.Println("Failed to register player.")
+			return
 		}
-		if string(msg) == "BTN GREEN" && gameStarted && players[playerID].grounded {
-			players[playerID].acceleration.Y += players[playerID].jumpPower
-			players[playerID].grounded = false
+		players = append(players, player{
+			hatID:        thisHatID,
+			characterID:  thisCharacterID,
+			wearingHat:   true,
+			playerName:   strings.Split(string(msg), " ")[3],
+			animation:    "idle",
+			IP:           conn.RemoteAddr().String(),
+			ws:           conn,
+			winner:       false,
+			score:        0,
+			position:     struct{ X, Y float64 }{0.0, windowY},
+			acceleration: struct{ X, Y float64 }{0.0, -100.0},
+			terminalVelocity: struct {
+				X float64
+				Y float64
+			}{globalTerminalVelocityX, globalTerminalVelocityY},
+			grounded:     true,
+			jumpPower:    globalJumpPower,
+			speed:        gloablSpeed,
+			bombsLeft:    minBombsLeft,
+			health:       100,
+			claimedBombs: []struct{ X, Y int }{},
+		})
+		fmt.Println("New player: ", players[len(players)-1])
+		return
+	}
+
+	// Check jumps
+	playerID := findPlayerByIP(conn.RemoteAddr().String())
+	if playerID == -1 {
+		return
+	}
+	if string(msg) == "BTN GREEN" && gameStarted && players[playerID].grounded {
+		players[playerID].acceleration.Y += players[playerID].jumpPower
+		players[playerID].grounded = false
+	}
+
+	// Check movements
+	if string(msg[:3]) == "BAL" && gameStarted {
+		ballX, err := strconv.ParseFloat(strings.Split(string(msg), " ")[1], 64)
+		if err != nil {
+			fmt.Println("Player submited invalid value for BAL")
+			return
 		}
+		players[playerID].acceleration.X += players[playerID].speed * deltaTime * ballX
 
-		// Check movements
-		if string(msg[:3]) == "BAL" && gameStarted {
-			ballX, err := strconv.ParseFloat(strings.Split(string(msg), " ")[1], 64)
-			if err != nil {
-				fmt.Println("Player submited invalid value for BAL")
-				continue
-			}
-			players[playerID].acceleration.X += players[playerID].speed * deltaTime * ballX
+	}
 
-		}
+	if string(msg) == "BTN RED" && gameStarted && players[playerID].bombsLeft > 0 && !players[playerID].exploding {
+		players[playerID].exploding = true
+		players[playerID].explosionFuse = time.Now()
+		players[playerID].wearingHat = false
 
-		if string(msg) == "BTN RED" && gameStarted && players[playerID].bombsLeft > 0 && !players[playerID].exploding {
-			players[playerID].exploding = true
-			players[playerID].explosionFuse = time.Now()
-			players[playerID].wearingHat = false
+		// Remove bombs from inventory
+		players[playerID].bombsLeft -= 1
+	}
 
-			// Remove bombs from inventory
-			players[playerID].bombsLeft -= 1
-		}
-
-		if string(msg[:3]) == "RSP" && gameStarted {
-			if string(msg[4:]) == triviaAnswer {
-				players[playerID].bombsLeft += 1
-				players[playerID].score += correctAnswerPoints
-			}
+	if string(msg[:3]) == "RSP" && gameStarted {
+		if string(msg[4:]) == triviaAnswer {
+			players[playerID].bombsLeft += 1
+			players[playerID].score += correctAnswerPoints
 		}
 	}
 }
@@ -311,10 +322,10 @@ func notifyController(t time.Duration) {
 		}
 		for i := range players {
 			message := fmt.Sprintf("BOM\\\\%s\\\\%d", players[i].playerName, players[i].bombsLeft)
-			conn.WriteMessage(websocket.TextMessage, []byte(message))
+			players[i].ws.WriteMessage(websocket.TextMessage, []byte(message))
 
 			message = fmt.Sprintf("HEL\\\\%s\\\\%f", players[i].playerName, players[i].health)
-			conn.WriteMessage(websocket.TextMessage, []byte(message))
+			players[i].ws.WriteMessage(websocket.TextMessage, []byte(message))
 
 			time.Sleep(t)
 		}
@@ -619,7 +630,9 @@ func askPlayers() int {
 	}
 
 	message := fmt.Sprintf("QUE\\\\%s\\\\%s\\\\%s\\\\%s", q.Question, r1, r2, r3)
-	conn.WriteMessage(websocket.TextMessage, []byte(message))
+	for _, val := range players {
+		val.ws.WriteMessage(websocket.TextMessage, []byte(message))
+	}
 
 	return toReturn
 }
@@ -792,13 +805,13 @@ func run() {
 	if err != nil {
 		panic(err)
 	}
-	IPtext := text.New(pixel.V(float64(windowX)*75/100, float64(windowY)*10/100), basicAtlas)
+	IPtext := text.New(pixel.V(0, float64(windowY)*10/100), basicAtlas)
 	IPtext.Color = colornames.Black
 	fmt.Fprintln(IPtext, "Invite Link:")
 	IPtext.Color = colornames.Blue
 	fmt.Fprintln(IPtext, privateIP)
 	// Get text to start game
-	pressToStartText := text.New(pixel.V(windowX*35/100, windowY*50/100), basicAtlas)
+	pressToStartText := text.New(pixel.V(0, 0), basicAtlas)
 	pressToStartText.Color = colornames.Red
 	pressToStartTextTimeout := time.Now()
 	pressToStartTextDraw := false
@@ -869,7 +882,7 @@ func run() {
 	}
 
 	//*Level counter
-	var currentLevelID = 0
+	var currentLevelID = 4
 	var levelDuration = time.Millisecond // preinit at a small number
 	var showProgressBar = true
 
@@ -890,7 +903,10 @@ func run() {
 				panic(err)
 			}
 			thisStoryPage := pixel.NewSprite(pic, pic.Bounds())
-			thisStoryPage.Draw(win, pixel.IM.Moved(win.Bounds().Center()))
+			xScaleFactor := win.Bounds().W() / thisStoryPage.Frame().W()
+			yScaleFactor := win.Bounds().H() / thisStoryPage.Frame().H()
+			fmt.Println(xScaleFactor)
+			thisStoryPage.Draw(win, pixel.IM.Moved(win.Bounds().Center()).ScaledXY(win.Bounds().Center(), pixel.V(xScaleFactor, yScaleFactor)))
 
 			if time.Since(storyTimeout) >= time.Second*2 {
 				storyTimeout = time.Now()
@@ -920,8 +936,8 @@ func run() {
 			numOfPlayers.Color = colornames.Blue
 			fmt.Fprintln(numOfPlayers, len(players))
 
-			titleSprite.Draw(win, pixel.IM.Moved(pixel.V(win.Bounds().Center().X, windowY*85/100)))
-			IPtext.Draw(win, pixel.IM.Scaled(IPtext.Orig, 4))
+			titleSprite.Draw(win, pixel.IM.Moved(pixel.V(win.Bounds().Center().X, win.Bounds().H()-titleIMG.Bounds().H()/2)))
+			IPtext.Draw(win, pixel.IM.Scaled(IPtext.Orig, 4).Moved(pixel.V(win.Bounds().W()-IPtext.Bounds().W()*4-50, 0)))
 			numOfPlayers.Draw(win, pixel.IM.Scaled(numOfPlayers.Orig, 4))
 
 			if time.Since(pressToStartTextTimeout) >= time.Millisecond*1000 {
@@ -929,7 +945,7 @@ func run() {
 				pressToStartTextDraw = !pressToStartTextDraw
 			}
 			if pressToStartTextDraw {
-				pressToStartText.Draw(win, pixel.IM.Scaled(pressToStartText.Orig, 3))
+				pressToStartText.Draw(win, pixel.IM.Scaled(pressToStartText.Orig, 4).Moved(pixel.V((win.Bounds().W()-pressToStartText.Bounds().W()*4)/2, (win.Bounds().H()-pressToStartText.Bounds().H()*4)/2)))
 			}
 
 			if (win.JustPressed(pixelgl.KeyEnter) || win.JustPressed(pixelgl.KeyKPEnter)) && len(players) > 0 {
@@ -958,6 +974,9 @@ func run() {
 			} else if currentLevelID == 4 {
 				calculateLevelScore(levelDuration)
 				levelDuration = level4()
+			} else if currentLevelID == 5 {
+				calculateLevelScore(levelDuration)
+				levelDuration = level5()
 			} else {
 				calculateLevelScore(levelDuration)
 				levelDuration = time.Millisecond
@@ -985,10 +1004,14 @@ func run() {
 				case "finish":
 					choseBlock = finishBlock
 				default:
+					fmt.Println("unknown block: " + blockGrid[x][y].blockType)
 					continue
 				}
 
-				choseBlock.Draw(win, pixel.IM.Moved(pixel.V(float64(x*50), float64(y*50+25))))
+				blockSizeX := win.Bounds().W() / blocksPerRow
+				blockSizeY := win.Bounds().H()/blocksPerCollumn + 1
+				moveVec := pixel.V((float64(x)+.5)*blockSizeX, (float64(y)+.5)*blockSizeY)
+				choseBlock.Draw(win, pixel.IM.ScaledXY(choseBlock.Frame().Center(), pixel.V(blockSizeX/choseBlock.Frame().W(), blockSizeY/choseBlock.Frame().H())).Moved(moveVec))
 			}
 		}
 
@@ -1012,7 +1035,10 @@ func run() {
 			default:
 			}
 
-			toDraw.Draw(win, pixel.IM.Moved(pixel.V(float64(val.position.X), float64(val.position.Y))))
+			//! This code was copied from block rendering!//
+			blockSizeX := win.Bounds().W() / blocksPerRow
+			blockSizeY := win.Bounds().H()/blocksPerCollumn + 1
+			toDraw.Draw(win, pixel.IM.ScaledXY(toDraw.Frame().Center(), pixel.V(blockSizeX/toDraw.Frame().W(), blockSizeY/toDraw.Frame().H())).Moved(pixel.V(float64(val.position.X), float64(val.position.Y))))
 
 		}
 
@@ -1021,7 +1047,11 @@ func run() {
 			if val.health <= 0 || !val.wearingHat {
 				continue
 			}
-			hats[val.hatID-1].Draw(win, pixel.IM.Moved(pixel.V(float64(val.position.X), float64(val.position.Y+30))))
+
+			//! This code was copied from block rendering!//
+			blockSizeX := win.Bounds().W() / blocksPerRow
+			blockSizeY := win.Bounds().H()/blocksPerCollumn + 1
+			hats[val.hatID-1].Draw(win, pixel.IM.ScaledXY(hats[val.hatID-1].Frame().Center(), pixel.V(blockSizeX/hats[val.hatID-1].Frame().W(), blockSizeY/hats[val.hatID-1].Frame().H())).Moved(pixel.V(float64(val.position.X), float64(val.position.Y+goobers[val.characterID].idle.Frame().H()/2))))
 		}
 
 		//* Render time
@@ -1168,6 +1198,38 @@ func calculateFinalScores() {
 	if err != nil {
 		fmt.Println(finalScores)
 		panic(err)
+	}
+}
+
+func loadLevelFromFile(levelID int) {
+	data, err := os.ReadFile(path.Join(wd, "/levels/normal/", fmt.Sprint(levelID)+".level"))
+	if err != nil {
+		panic(err)
+	}
+	textData := string(data)
+	lines := strings.Split(textData, "\n")
+	for y, val := range lines {
+		elems := strings.Split(val, " ")
+		for x, val := range elems {
+			if x >= len(elems)-1 {
+				continue
+			}
+
+			var toPlace string
+
+			switch val {
+			case "N":
+				toPlace = "basic"
+			case "A":
+				toPlace = "ability"
+			case "L":
+				toPlace = "lava"
+			default:
+				continue
+			}
+
+			blockGrid[x][y].blockType = toPlace
+		}
 	}
 }
 
@@ -1451,4 +1513,14 @@ func level4() time.Duration {
 	}
 
 	return time.Second * 120
+}
+
+func level5() time.Duration {
+	placeAllPlayers(100, 200)
+	healAllPlayers()
+	clearBlockGrid()
+
+	loadLevelFromFile(0)
+
+	return time.Second * 3600
 }
