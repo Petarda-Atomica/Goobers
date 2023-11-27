@@ -27,6 +27,7 @@ import (
 var wd string
 var maxHats int
 var maxChars int
+var numOfLevels int
 
 const windowX = 1280
 const windowY = 720
@@ -53,6 +54,7 @@ const blocksPerRow = 39.
 const blocksPerCollumn = 22.
 
 var gameStarted = false
+var gameLogs = ""
 
 type player struct {
 	playerName       string
@@ -147,12 +149,20 @@ func _init() {
 	if err != nil {
 		panic(err)
 	}
+
+	//* Get num of levels
+	levels, err := os.ReadDir(path.Join(wd, "/levels/normal/"))
+	if err != nil {
+		panic(err)
+	}
+	numOfLevels = len(levels)
 }
 
 func readHTML(name string) string {
 	f, err := os.ReadFile(path.Join(wd, "\\static\\", name+".html"))
 	if err != nil {
 		fmt.Println("Failed to read file ", name)
+		panic(err)
 	}
 	return string(f)
 }
@@ -174,7 +184,7 @@ func main() {
 		}
 	}()
 
-	fmt.Println("Hello, world!")
+	fmt.Println("Started controllers server!")
 
 	pixelgl.Run(run)
 }
@@ -383,7 +393,7 @@ func getPrivateIP() (string, error) {
 func gravityHandler(deltaTime float64) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Recovered from panic:", r)
+			gameLogs += fmt.Sprint("Line 369: ", r, "\n")
 		}
 	}()
 
@@ -476,7 +486,7 @@ func movementHandler(deltaTime float64) {
 		// Make sure we don't crash
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Println("Recovered from panic:", r)
+				gameLogs += fmt.Sprint("Line 489: ", r, "\n")
 				players[i].position.X += changedX
 				players[i].position.Y += changedY
 			}
@@ -673,7 +683,6 @@ func calculateLevelScore(t time.Duration) {
 			players[i].score -= nonCompletionPenalty
 		}
 		players[i].winner = false
-		fmt.Println(players[i].score)
 	}
 
 	timeAtPodiumAppeared = time.Now()
@@ -689,6 +698,10 @@ var deltaTime float64
 var win *pixelgl.Window
 
 func run() {
+	defer func() {
+		fmt.Println("Please wait while we calculate some scores...")
+		calculateFinalScores()
+	}()
 	go basicAnimator()
 	go explosionManager()
 	go notifyController(time.Millisecond * 500)
@@ -905,7 +918,6 @@ func run() {
 			thisStoryPage := pixel.NewSprite(pic, pic.Bounds())
 			xScaleFactor := win.Bounds().W() / thisStoryPage.Frame().W()
 			yScaleFactor := win.Bounds().H() / thisStoryPage.Frame().H()
-			fmt.Println(xScaleFactor)
 			thisStoryPage.Draw(win, pixel.IM.Moved(win.Bounds().Center()).ScaledXY(win.Bounds().Center(), pixel.V(xScaleFactor, yScaleFactor)))
 
 			if time.Since(storyTimeout) >= time.Second*2 {
@@ -963,22 +975,11 @@ func run() {
 			currentLevelStartTime = time.Now()
 			triviaAnswer = fmt.Sprint(askPlayers())
 
-			if currentLevelID == 1 {
-				levelDuration = level1()
-			} else if currentLevelID == 2 {
+			levelDuration = basicLevel(currentLevelID - 1)
+			if currentLevelID != 1 {
 				calculateLevelScore(levelDuration)
-				levelDuration = level2()
-			} else if currentLevelID == 3 {
-				calculateLevelScore(levelDuration)
-				levelDuration = level3()
-			} else if currentLevelID == 4 {
-				calculateLevelScore(levelDuration)
-				levelDuration = level4()
-			} else if currentLevelID == 5 {
-				calculateLevelScore(levelDuration)
-				levelDuration = level5()
-			} else {
-				calculateLevelScore(levelDuration)
+			}
+			if !(currentLevelID <= numOfLevels) {
 				levelDuration = time.Millisecond
 				currentLevelID = 0
 			}
@@ -1059,11 +1060,11 @@ func run() {
 		//* Render time
 		if showProgressBar {
 			// Show bar
-			levelPercent := float64(time.Since(currentLevelStartTime).Milliseconds()) / float64(levelDuration.Milliseconds()) * 100.0
-			pixel.NewSprite(statusBar, statusBar.Bounds()).Draw(win, pixel.IM.Moved(pixel.V(win.Bounds().Center().X, windowY*90/100)).ScaledXY(win.Bounds().Center(), pixel.V(1-levelPercent/100, 1)))
+			//levelPercent := float64(time.Since(currentLevelStartTime).Milliseconds()) / float64(levelDuration.Milliseconds()) * 100.0
+			//pixel.NewSprite(statusBar, statusBar.Bounds()).Draw(win, pixel.IM.Moved(pixel.V(win.Bounds().Center().X, windowY*90/100)).ScaledXY(win.Bounds().Center(), pixel.V(1-levelPercent/100, 1)))
 			// Show text
 			timeLeft := text.New(pixel.V(0, 0), basicAtlas)
-			timeLeft.Color = colornames.Black
+			timeLeft.Color = colornames.White
 			fmt.Fprintf(timeLeft, "Ending in: %s", (-time.Since(currentLevelStartTime) + levelDuration).Round(time.Millisecond*100).String())
 			timeLeft.Draw(win, pixel.IM.Moved(win.Bounds().Center()).Scaled(win.Bounds().Center(), 4).Moved(pixel.V(-statusBar.Bounds().W()/4, windowY*40/100)))
 
@@ -1154,9 +1155,6 @@ func run() {
 		win.Update()
 
 	}
-
-	fmt.Println("Please wait while we calculate some scores...")
-	calculateFinalScores()
 }
 
 type finalScore struct {
@@ -1201,49 +1199,75 @@ func calculateFinalScores() {
 		fmt.Println(finalScores)
 		panic(err)
 	}
+
+	//* Save logs
+	err = os.WriteFile("logs.txt", []byte(gameLogs), os.ModePerm)
+	if err != nil {
+		panic(err)
+	}
 }
 
-func loadLevelFromFile(levelID int) time.Duration {
+func loadLevelFromFile(levelID int) (time.Duration, struct{ X, Y float64 }) {
 	data, err := os.ReadFile(path.Join(wd, "/levels/normal/", fmt.Sprint(levelID)+".level"))
 	if err != nil {
 		panic(err)
 	}
 	textData := string(data)
 	lines := strings.Split(textData, "\n")[:len(strings.Split(textData, "\n"))-2]
-	for y, val := range lines {
-		elems := strings.Split(val, " ")
-		for x, val := range elems {
+	for y, valy := range lines[:len(strings.Split(textData, "\n"))-1] {
+		elems := strings.Split(valy, " ")
+		for x, valx := range elems {
 			if x >= len(elems)-1 {
 				continue
 			}
 
-			var toPlace string
+			toPlace := ""
 
-			switch val {
+			switch valx {
 			case "N":
 				toPlace = "basic"
 			case "A":
 				toPlace = "ability"
 			case "L":
 				toPlace = "lava"
+			case "F":
+				toPlace = "finish"
 			default:
 				continue
 			}
 
-			blockGrid[x][y].blockType = toPlace
+			blockGrid[x][len(lines)-y].blockType = toPlace
 		}
 	}
 
+	lastLine := strings.Split(textData, "\n")[len(strings.Split(textData, "\n"))-1]
+
 	var secs float64
-	secs, err = strconv.ParseFloat(strings.Split(textData, "\n")[len(strings.Split(textData, "\n"))-1], 64)
+	secs, err = strconv.ParseFloat(strings.Split(lastLine, " ")[0], 64)
 	if err != nil {
 		fmt.Println("Failed to load level timer!")
-		return time.Second * 60
+		return time.Second * 60, struct {
+			X float64
+			Y float64
+		}{blocksPerRow / 2, blocksPerCollumn}
 	}
 
-	return time.Second * time.Duration(secs)
+	var pos struct{ X, Y float64 }
+	pos.X, err = strconv.ParseFloat(strings.Split(lastLine, " ")[1], 64)
+	if err != nil {
+		fmt.Println("Failed to load player position X!")
+		pos.X = blocksPerRow / 2
+	}
+	pos.Y, err = strconv.ParseFloat(strings.Split(lastLine, " ")[2], 64)
+	if err != nil {
+		fmt.Println("Failed to load player position Y!")
+		pos.Y = blocksPerCollumn
+	}
+
+	return time.Second * time.Duration(secs), pos
 }
 
+/*
 func level1() time.Duration {
 	placeAllPlayers(100, 200)
 	healAllPlayers()
@@ -1524,14 +1548,16 @@ func level4() time.Duration {
 	}
 
 	return time.Second * 120
-}
+}*/
 
-func level5() time.Duration {
-	placeAllPlayers(100, 200)
+func basicLevel(ID int) time.Duration {
 	healAllPlayers()
 	clearBlockGrid()
 
-	loadLevelFromFile(0)
+	blockSizeX := win.Bounds().W() / blocksPerRow
+	blockSizeY := win.Bounds().H()/blocksPerCollumn + 1
+	timer, pos := loadLevelFromFile(ID)
+	placeAllPlayers(pos.X*blockSizeX, pos.Y*blockSizeY)
 
-	return time.Second * 3600
+	return timer
 }
