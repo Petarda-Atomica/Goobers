@@ -970,7 +970,7 @@ func run() {
 		//! Render loop
 
 		//* Load level
-		if time.Since(currentLevelStartTime) >= levelDuration {
+		if time.Since(currentLevelStartTime) >= levelDuration || (win.JustPressed(pixelgl.KeyEnter) || win.JustPressed(pixelgl.KeyKPEnter)) {
 			currentLevelID++
 			currentLevelStartTime = time.Now()
 			triviaAnswer = fmt.Sprint(askPlayers())
@@ -979,7 +979,7 @@ func run() {
 			if currentLevelID != 1 {
 				calculateLevelScore(levelDuration)
 			}
-			if !(currentLevelID <= numOfLevels) {
+			if !(currentLevelID < numOfLevels) {
 				levelDuration = time.Millisecond
 				currentLevelID = 0
 			}
